@@ -1,5 +1,5 @@
 gradio>=4.0.0
-smolagents>=1.9.2  # Permitir una versión más reciente
+smolagents>=1.10.0  # Forzar una versión más reciente (ajusta si 1.10.0 no existe)
 huggingface_hub
 requests
 python-dotenv
@@ -8,4 +8,4 @@ pytz
 scipy>=1.8.0
 fastrtc[vad]
 soundfile
-numpy
+numpy>=1.16.6,<2.0  # Ajustar para evitar conflictos
