@@ -1,5 +1,11 @@
-markdownify
-smolagents
+gradio>=4.0.0
+smolagents>=1.9.2  # Permitir una versión más reciente
+huggingface_hub
 requests
-duckduckgo_search
-pandas
+python-dotenv
+PyYAML
+pytz
+scipy>=1.8.0
+fastrtc[vad]
+soundfile
+numpy
