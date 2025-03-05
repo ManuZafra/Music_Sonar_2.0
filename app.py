@@ -75,21 +75,25 @@ UI_MESSAGES = {
 
 @tool
 def recognize_song(audio_path: str) -> dict:
-    """Recognize a song from an audio file using the ACRCloud API.
-
-    This function sends an audio file to the ACRCloud API for music recognition and returns a dictionary
-    with song details if successful, or an error message if it fails.
+    """
+    Recognize a song from an audio file using the ACRCloud API.
 
     Parameters
     ----------
     audio_path : str
-        The file path to the audio file that will be sent to ACRCloud for recognition.
+        Path to the audio file to be sent for recognition.
 
     Returns
     -------
     dict
-        A dictionary containing song details (Song, Artist, Album, Recognition Date) or an error message if recognition fails.
+        A dictionary containing:
+        - "Song": Title of the recognized song.
+        - "Artist": Name of the artist.
+        - "Album": Album name.
+        - "Recognition Date": Date when the song was recognized.
+        - "error": Error message if recognition fails.
     """
+
     # Imprimir la docstring para depuración
     logger.info(f"recognize_song docstring: {recognize_song.__doc__}")
     
