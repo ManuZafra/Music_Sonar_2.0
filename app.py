@@ -90,6 +90,7 @@ def recognize_song(audio_path: str) -> dict:
     dict
         A dictionary containing song details (Song, Artist, Album, Recognition Date) or an error message if recognition fails.
     """
+    # Imprimir la docstring para depuración
     logger.info(f"recognize_song docstring: {recognize_song.__doc__}")
 
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
@@ -201,7 +202,7 @@ def process_audio_stream(audio_chunk):
         if "error" not in result:
             song_name = result['Song']
             artist_name = result['Artist']
-            artist_info = get_artist_info(artist_name, song_name, "en")  # Usa lang_code si prefieres idioma dinámico
+            artist_info = get_artist_info(artist_name, song_name, "en")
             return f"🎵 **{song_name}** by {artist_name}\n\n{artist_info}"
         return "No match yet, keep playing..."
     return "Processing..."
