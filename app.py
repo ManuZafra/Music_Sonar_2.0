@@ -75,28 +75,23 @@ UI_MESSAGES = {
 
 @tool
 def recognize_song(audio_path: str) -> dict:
-    """
-    Recognize a song from an audio file using the ACRCloud API.
+    """Recognize a song from an audio file using the ACRCloud API.
+
+    This function sends an audio file to the ACRCloud API for music recognition and returns a dictionary
+    with song details if successful, or an error message if it fails.
 
     Parameters
     ----------
     audio_path : str
-        Path to the audio file to be sent for recognition.
+        The file path to the audio file that will be sent to ACRCloud for recognition.
 
     Returns
     -------
     dict
-        A dictionary containing:
-        - "Song": Title of the recognized song.
-        - "Artist": Name of the artist.
-        - "Album": Album name.
-        - "Recognition Date": Date when the song was recognized.
-        - "error": Error message if recognition fails.
+        A dictionary containing song details (Song, Artist, Album, Recognition Date) or an error message if recognition fails.
     """
-
-    # Imprimir la docstring para depuración
     logger.info(f"recognize_song docstring: {recognize_song.__doc__}")
-    
+
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
     if not os.path.exists(audio_path):
@@ -224,7 +219,7 @@ with gr.Blocks() as demo:
 
     title_component = gr.Markdown(f"# 🎵 {get_ui_message('title', 'en')}")
     subtitle_component = gr.Markdown(get_ui_message('subtitle', 'en'))
-    
+
     with gr.Row():
         language_dropdown = gr.Dropdown(choices=list(LANGUAGES.keys()), value="English", label=get_ui_message('choose_language', 'en'))
 
