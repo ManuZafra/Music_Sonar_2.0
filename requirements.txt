@@ -8,8 +8,7 @@ pytz
 scipy>=1.8.0,<1.11
 fastrtc[vad]
 soundfile
-numpy>=1.16.6,<2.0
-pandas>=2.2.3
-pyarrow>=4.0.0,<10.0
-packaging>=14.3,<22.0
-protobuf>=3.19.0,<4.0
+numpy>=1.16.6,<2.0  # Compatible con mlflow y db-dtypes
+pandas>=0.24.2,<2.0  # Compatible con db-dtypes
+pyarrow>=4.0.0,<10.0  # Compatible con pandas-gbq
+packaging>=14.3,<22.0  # Compatible con google-cloud-bigquery
