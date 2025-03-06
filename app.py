@@ -170,20 +170,20 @@ audio_buffer = []
 buffer_duration = 10  # 10 segundos por fragmento
 sample_rate = 44100
 
-def process_audio_stream(audio_chunk):
+def process_audio_stream(audio_data):
     """Processes audio chunks in real-time for song recognition.
 
     Args:
-        audio_chunk: The audio data chunk received from FastRTC.
+        audio_data: The audio data received from the microphone.
 
     Returns:
         str: The recognized song title and artist info, or a status message.
     """
     global audio_buffer
-    if isinstance(audio_chunk, bytes):
-        audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
-    else:
-        audio_data = audio_chunk
+    if audio_data is None:
+        return "Processing..."
+    if isinstance(audio_data, tuple):  # Gradio 4.0.0 devuelve (sample_rate, data)
+        _, audio_data = audio_data
     audio_buffer.extend(audio_data)
     if len(audio_buffer) >= sample_rate * buffer_duration:
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
@@ -238,16 +238,16 @@ with gr.Blocks() as demo:
             lang_code
         )
 
-    # Usar gr.Audio para capturar audio en tiempo real y procesarlo con stream
-    audio_input = gr.Audio(source="microphone", streaming=True, visible=False)
+    # Usar gr.Audio sin 'source' ni 'streaming' para Gradio 4.0.0
+    audio_input = gr.Audio(visible=False)  # Micrófono implícito en Gradio 4.0.0
 
     record_btn.click(
         fn=toggle_audio_widget,
         inputs=[lang_code],
         outputs=[audio_status, audio_status_msg, artist_facts]
     ).then(
-        fn=process_audio_stream,  # Procesar directamente con la función de callback
-        inputs=[audio_input],     # Audio recibido del micrófono
+        fn=process_audio_stream,
+        inputs=[audio_input],
         outputs=[stream_output]
     ).then(
         fn=lambda output: (output.split('\n\n')[0], '\n\n'.join(output.split('\n\n')[1:]) if '\n\n' in output else ""),
