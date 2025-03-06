@@ -78,7 +78,7 @@ def recognize_song(audio_path: str) -> dict:
     """Recognize a song from an audio file using the ACRCloud API.
 
     Args:
-        audio_path (str): The file path to the audio file that will be sent to ACRCloud for recognition.
+        audio_path: The file path to the audio file that will be sent to ACRCloud for recognition.
 
     Returns:
         dict: A dictionary containing song details (Song, Artist, Album, Recognition Date) or an error message if recognition fails.
@@ -117,7 +117,7 @@ def save_to_history(song_data):
     """Saves a song to the history file.
 
     Args:
-        song_data (dict): The song information to save.
+        song_data: The song information to save.
     """
     try:
         if os.path.exists(HISTORY_FILE):
@@ -238,13 +238,16 @@ with gr.Blocks() as demo:
             lang_code
         )
 
+    # Usar gr.Audio para capturar audio en tiempo real y procesarlo con stream
+    audio_input = gr.Audio(source="microphone", streaming=True, visible=False)
+
     record_btn.click(
         fn=toggle_audio_widget,
         inputs=[lang_code],
         outputs=[audio_status, audio_status_msg, artist_facts]
     ).then(
-        fn=stream.run,
-        inputs=[],
+        fn=process_audio_stream,  # Procesar directamente con la función de callback
+        inputs=[audio_input],     # Audio recibido del micrófono
         outputs=[stream_output]
     ).then(
         fn=lambda output: (output.split('\n\n')[0], '\n\n'.join(output.split('\n\n')[1:]) if '\n\n' in output else ""),
