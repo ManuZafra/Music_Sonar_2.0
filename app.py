@@ -135,16 +135,17 @@ def save_to_history(song_data):
 
 @tool
 def get_artist_info(artist_name: str, song_name: str = "", language: str = "en") -> str:
-    """Gets detailed background information about a music artist and their song.
+    """Get information about an artist and optionally a specific song.
 
     Args:
-        artist_name (str): Name of the artist to get information about.
-        song_name (str, optional): Name of the song, if available.
-        language (str): Language code (en, es, fr).
+        artist_name (str): The name of the artist to get information about.
+        song_name (str): The name of a specific song by the artist (optional, defaults to empty string).
+        language (str): The language for the returned information (default: "en").
 
     Returns:
-        str: A string with artist information or an error message.
+        str: A string containing information about the artist and song (if provided).
     """
+    logger.info(f"get_artist_info docstring: {get_artist_info.__doc__}")
     prompts = {
         "en": f"Provide details about '{artist_name}'. Include biography, fun facts, and about '{song_name}' if available.",
         "es": f"Proporciona detalles sobre '{artist_name}'. Incluye biografía, datos curiosos y sobre '{song_name}' si está disponible.",
