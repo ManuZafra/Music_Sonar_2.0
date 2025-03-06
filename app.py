@@ -138,9 +138,9 @@ def get_artist_info(artist_name: str, song_name: str = "", language: str = "en")
     """Get information about an artist and optionally a specific song.
 
     Args:
-        artist_name (str): The name of the artist to get information about.
-        song_name (str): The name of a specific song by the artist (optional, defaults to empty string).
-        language (str): The language for the returned information (default: "en").
+        artist_name: The name of the artist to get information about.
+        song_name: The name of a specific song by the artist (optional, defaults to empty string).
+        language: The language for the returned information (default: "en").
 
     Returns:
         str: A string containing information about the artist and song (if provided).
