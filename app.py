@@ -146,7 +146,7 @@ with gr.Blocks() as demo:
         return messages.get(key, "")
 
     title_component = gr.Markdown(f"# 🎵 {get_ui_message('title', 'en')}")
-    subtitle_component = gr.Markdown(get_ui_message('subtitle', 'en"))
+    subtitle_component = gr.Markdown(get_ui_message('subtitle', 'en'))
 
     with gr.Row():
         language_dropdown = gr.Dropdown(choices=list(LANGUAGES.keys()), value="English", label="Language")
