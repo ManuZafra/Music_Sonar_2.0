@@ -246,13 +246,13 @@ with gr.Blocks() as demo:
     ).then(
         fn=process_audio_stream,
         inputs=[audio_input],
-        outputs=[stream_output],
-        _js="() => [navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => new MediaRecorder(stream).start())]"
+        outputs=[stream_output]
     ).then(
         fn=lambda output: (output.split('\n\n')[0], '\n\n'.join(output.split('\n\n')[1:]) if '\n\n' in output else ""),
         inputs=[stream_output],
         outputs=[song_title_display, artist_facts]
-    )
+)
+
 
     language_dropdown.change(
         fn=update_ui_language,
