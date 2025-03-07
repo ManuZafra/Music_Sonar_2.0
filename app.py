@@ -174,7 +174,7 @@ def process_audio_stream(audio_data):
     """Processes audio chunks in real-time for song recognition.
 
     Args:
-        audio_data: The audio data received from the microphone.
+        audio_data: The audio data chunk received from the microphone.
 
     Returns:
         str: The recognized song title and artist info, or a status message.
@@ -182,9 +182,8 @@ def process_audio_stream(audio_data):
     global audio_buffer
     if audio_data is None:
         return "Processing..."
-    if isinstance(audio_data, tuple):  # Gradio 4.0.0 devuelve (sample_rate, data)
-        _, audio_data = audio_data
     audio_buffer.extend(audio_data)
+    logger.info(f"Audio buffer size: {len(audio_buffer)}")
     if len(audio_buffer) >= sample_rate * buffer_duration:
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
             sf.write(tmp_file.name, np.array(audio_buffer), sample_rate, format="mp3")
@@ -238,8 +237,7 @@ with gr.Blocks() as demo:
             lang_code
         )
 
-    # Usar gr.Audio sin 'source' ni 'streaming' para Gradio 4.0.0
-    audio_input = gr.Audio(visible=False)  # Micrófono implícito en Gradio 4.0.0
+    audio_input = gr.Audio(source="microphone", streaming=True, visible=False)
 
     record_btn.click(
         fn=toggle_audio_widget,
@@ -248,7 +246,8 @@ with gr.Blocks() as demo:
     ).then(
         fn=process_audio_stream,
         inputs=[audio_input],
-        outputs=[stream_output]
+        outputs=[stream_output],
+        _js="() => [navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => new MediaRecorder(stream).start())]"
     ).then(
         fn=lambda output: (output.split('\n\n')[0], '\n\n'.join(output.split('\n\n')[1:]) if '\n\n' in output else ""),
         inputs=[stream_output],
