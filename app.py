@@ -82,31 +82,10 @@ def recognize_song(audio_path: str) -> dict:
             "Recognition Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-        save_to_history(song_data)
         return song_data
 
     except Exception as e:
         return {"error": f"Error processing audio: {str(e)}"}
-
-def save_to_history(song_data):
-    """Saves a song to the history file."""
-    try:
-        if os.path.exists(HISTORY_FILE):
-            with open(HISTORY_FILE, "r") as f:
-                history = json.load(f)
-        else:
-            history = []
-
-        history.insert(0, song_data)
-
-        if len(history) > 50:
-            history = history[:50]
-
-        with open(HISTORY_FILE, "w") as f:
-            json.dump(history, f, indent=2)
-
-    except Exception as e:
-        logger.error(f"Error saving to history: {str(e)}")
 
 # Buffer de audio en tiempo real
 audio_buffer = []
@@ -134,7 +113,6 @@ def process_audio_stream(audio_data):
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
             sf.write(tmp_file.name, np.array(audio_buffer), sample_rate, format="mp3")
             logger.info(f"Archivo de audio guardado en: {tmp_file.name}")
-            print(f"Revisa el archivo guardado: {tmp_file.name}")
 
             result = recognize_song(tmp_file.name)
 
@@ -168,7 +146,7 @@ with gr.Blocks() as demo:
         return messages.get(key, "")
 
     title_component = gr.Markdown(f"# 🎵 {get_ui_message('title', 'en')}")
-    subtitle_component = gr.Markdown(get_ui_message('subtitle', 'en'))
+    subtitle_component = gr.Markdown(get_ui_message('subtitle', 'en"))
 
     with gr.Row():
         language_dropdown = gr.Dropdown(choices=list(LANGUAGES.keys()), value="English", label="Language")
@@ -180,7 +158,7 @@ with gr.Blocks() as demo:
         stream_output = gr.Markdown(label="Real-time Recognition")
 
     def toggle_audio_widget(lang_code):
-        return "loading", get_ui_message("recording", lang_code), ""
+        return "loading", get_ui_message("recording", lang_code)
 
     def update_ui_language(language_name):
         lang_code = LANGUAGES.get(language_name, "en")
@@ -198,7 +176,7 @@ with gr.Blocks() as demo:
         outputs=[audio_status, audio_status_msg]
     ).then(
         fn=process_audio_stream,
-        inputs=[],
+        inputs=[gr.Audio(streaming=True)],
         outputs=[stream_output]
     )
 
@@ -208,4 +186,4 @@ with gr.Blocks() as demo:
         outputs=[title_component, subtitle_component, record_btn, audio_status_msg, lang_code]
     )
 
-demo.launch(show_error=True, share=True, debug=True, server_name="0.0.0.0")
+demo.launch(show_error=True, share=False, debug=True, server_name="0.0.0.0")
