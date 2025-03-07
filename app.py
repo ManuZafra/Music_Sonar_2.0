@@ -237,7 +237,7 @@ with gr.Blocks() as demo:
             lang_code
         )
 
-    audio_input = gr.Audio(source="microphone", streaming=True, visible=False)
+    audio_input = gr.Audio(streaming=True, interactive=True)
 
     record_btn.click(
         fn=toggle_audio_widget,
