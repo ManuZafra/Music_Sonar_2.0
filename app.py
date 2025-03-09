@@ -10,11 +10,11 @@ import hashlib
 import time
 import base64
 
-# Configurar logging para forzar salida
+# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]  # Asegura que los logs vayan a stdout
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger("music_recognition_app")
 
@@ -35,6 +35,7 @@ def recognize_song(audio_path: str) -> dict:
         timestamp = str(int(time.time()))
         signature_version = "1"
         method = "POST"
+        sample_bytes = str(os.path.getsize(audio_path))
 
         string_to_sign = f"{method}\n/v1/identify\n{ACR_ACCESS_KEY}\n{signature_version}\n{timestamp}"
         sign = hmac.new(
@@ -51,12 +52,13 @@ def recognize_song(audio_path: str) -> dict:
             "signature_version": signature_version,
             "signature": signature,
             "timestamp": timestamp,
-            "data_type": "audio"
+            "data_type": "audio",
+            "sample_bytes": sample_bytes  # Añadido
         }
         logger.info(f"Request data: {data}")
 
         with open(audio_path, "rb") as file:
-            files = {"sample": file}
+            files = {"sample": (os.path.basename(audio_path), file, "audio/mpeg")}
             response = requests.post(url, data=data, files=files)
 
         logger.info(f"ACRCloud response: status={response.status_code}, content={response.text}")
@@ -80,7 +82,7 @@ def process_audio(audio):
     logger.info(f"Processing audio: {audio}")
     if audio is None:
         logger.info("No audio received")
-        return "Please record some audio"
+        return "Please record some audio first"
     try:
         sample_rate, audio_data = audio
         logger.info(f"Audio data: sample_rate={sample_rate}, shape={audio_data.shape}")
@@ -101,7 +103,7 @@ def process_audio(audio):
 # Interfaz
 with gr.Blocks() as demo:
     gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("Click 'Record and Recognize' to capture audio")
+    audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Record and Recognize'")
     audio_input = gr.Audio(label="Record Audio", type="numpy", interactive=True)
     record_btn = gr.Button("Record and Recognize", variant="primary")
     output = gr.Markdown("Recognition result will appear here")
