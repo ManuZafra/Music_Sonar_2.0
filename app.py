@@ -50,7 +50,7 @@ def process_audio(audio):
         logger.info("No audio received")
         return "Please record some audio"
     try:
-        # audio es una tupla (sample_rate, data) desde gr.Audio
+        # audio es una tupla (sample_rate, data) desde gr.Audio con type="numpy"
         sample_rate, audio_data = audio
         logger.info(f"Audio data: sample_rate={sample_rate}, shape={audio_data.shape}")
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
@@ -68,8 +68,8 @@ def process_audio(audio):
 # Interfaz
 with gr.Blocks() as demo:
     gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("Click 'Record' to capture audio")
-    audio_input = gr.Audio(source="microphone", label="Record Audio", type="numpy")  # Sin streaming
+    audio_status = gr.Markdown("Click 'Record and Recognize' to capture audio")
+    audio_input = gr.Audio(label="Record Audio", type="numpy", interactive=True)  # Sin source, sin streaming
     record_btn = gr.Button("Record and Recognize", variant="primary")
     output = gr.Markdown("Recognition result will appear here")
 
