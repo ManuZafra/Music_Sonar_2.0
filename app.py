@@ -10,15 +10,7 @@ import numpy as np
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("music_recognition_app")
 
-# Verificar FastRTC
-try:
-    from fastrtc import Stream, ReplyOnPause
-    logger.info("FastRTC imported successfully")
-except ImportError:
-    logger.error("FastRTC not installed")
-    raise
-
-# Función de reconocimiento con ACRCloud
+# ACRCloud
 def recognize_song(audio_path: str) -> dict:
     logger.info(f"Recognizing song from: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
@@ -52,56 +44,37 @@ def recognize_song(audio_path: str) -> dict:
         logger.error(f"Error in recognize_song: {str(e)}")
         return {"error": f"Error: {str(e)}"}
 
-# Buffer de audio
-audio_buffer = []
-buffer_duration = 5  # 5 segundos
-sample_rate = 44100
-
-def process_audio_stream(audio_data):
-    global audio_buffer
-    logger.info(f"Received audio data: type={type(audio_data)}, length={len(audio_data) if audio_data is not None else 'None'}")
-    if audio_data is None:
-        logger.info("No audio data received")
-        return "Processing..."
+def process_audio(audio):
+    logger.info(f"Received audio: {audio}")
+    if audio is None:
+        logger.info("No audio received")
+        return "Please record some audio"
     try:
-        audio_array = np.array(audio_data)
-        logger.info(f"Audio array: shape={audio_array.shape}, min={audio_array.min()}, max={audio_array.max()}")
-        audio_buffer.extend(audio_data)
-        logger.info(f"Buffer size: {len(audio_buffer)}")
-        if len(audio_buffer) >= sample_rate * buffer_duration:
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
-                sf.write(tmp_file.name, np.array(audio_buffer), sample_rate, format="mp3")
-                logger.info(f"Audio file written: {tmp_file.name}, size={os.path.getsize(tmp_file.name)} bytes")
-                result = recognize_song(tmp_file.name)
-            os.unlink(tmp_file.name)
-            audio_buffer.clear()
-            if "error" not in result:
-                return f"🎵 **{result['Song']}** by {result['Artist']}"
-            return f"Recognition failed: {result['error']}"
-        return "Processing..."
+        # audio es una tupla (sample_rate, data) desde gr.Audio
+        sample_rate, audio_data = audio
+        logger.info(f"Audio data: sample_rate={sample_rate}, shape={audio_data.shape}")
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
+            sf.write(tmp_file.name, audio_data, sample_rate, format="mp3")
+            logger.info(f"Audio file written: {tmp_file.name}, size={os.path.getsize(tmp_file.name)} bytes")
+            result = recognize_song(tmp_file.name)
+        os.unlink(tmp_file.name)
+        if "error" not in result:
+            return f"🎵 **{result['Song']}** by {result['Artist']}"
+        return f"Recognition failed: {result['error']}"
     except Exception as e:
-        logger.error(f"Error in process_audio_stream: {str(e)}")
+        logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
 
-stream = Stream(ReplyOnPause(process_audio_stream), modality="audio", mode="send-receive")
-
-# Interfaz de Gradio
+# Interfaz
 with gr.Blocks() as demo:
     gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("Click 'START LISTENING' to begin")
-    record_btn = gr.Button("START LISTENING", variant="primary")
+    audio_status = gr.Markdown("Click 'Record' to capture audio")
+    audio_input = gr.Audio(source="microphone", label="Record Audio", type="numpy")  # Sin streaming
+    record_btn = gr.Button("Record and Recognize", variant="primary")
     output = gr.Markdown("Recognition result will appear here")
-    audio_input = gr.Audio(streaming=True, interactive=True, label="Mic Input")
-
-    def start_listening():
-        return "Listening..."
 
     record_btn.click(
-        fn=start_listening,
-        inputs=None,
-        outputs=audio_status
-    ).then(
-        fn=process_audio_stream,
+        fn=process_audio,
         inputs=audio_input,
         outputs=output
     )
