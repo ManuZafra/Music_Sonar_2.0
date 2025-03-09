@@ -10,13 +10,17 @@ import hashlib
 import time
 import base64
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+# Configurar logging para forzar salida
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]  # Asegura que los logs vayan a stdout
+)
 logger = logging.getLogger("music_recognition_app")
 
 # ACRCloud con firma
 def recognize_song(audio_path: str) -> dict:
-    logger.info(f"Recognizing song from: {audio_path}")
+    logger.info(f"Starting recognition for: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
     if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
@@ -28,11 +32,10 @@ def recognize_song(audio_path: str) -> dict:
 
     try:
         url = "http://identify-eu-west-1.acrcloud.com/v1/identify"
-        timestamp = str(int(time.time()))  # Tiempo actual en segundos
+        timestamp = str(int(time.time()))
         signature_version = "1"
         method = "POST"
 
-        # Generar la firma
         string_to_sign = f"{method}\n/v1/identify\n{ACR_ACCESS_KEY}\n{signature_version}\n{timestamp}"
         sign = hmac.new(
             ACR_SECRET_KEY.encode('utf-8'),
@@ -41,7 +44,6 @@ def recognize_song(audio_path: str) -> dict:
         ).digest()
         signature = base64.b64encode(sign).decode('utf-8')
 
-        # Parámetros de la solicitud
         data = {
             "access_key": ACR_ACCESS_KEY,
             "sample_rate": "44100",
@@ -51,6 +53,7 @@ def recognize_song(audio_path: str) -> dict:
             "timestamp": timestamp,
             "data_type": "audio"
         }
+        logger.info(f"Request data: {data}")
 
         with open(audio_path, "rb") as file:
             files = {"sample": file}
@@ -74,7 +77,7 @@ def recognize_song(audio_path: str) -> dict:
         return {"error": f"Error: {str(e)}"}
 
 def process_audio(audio):
-    logger.info(f"Received audio: {audio}")
+    logger.info(f"Processing audio: {audio}")
     if audio is None:
         logger.info("No audio received")
         return "Please record some audio"
@@ -87,7 +90,9 @@ def process_audio(audio):
             result = recognize_song(tmp_file.name)
         os.unlink(tmp_file.name)
         if "error" not in result:
+            logger.info(f"Recognition successful: {result}")
             return f"🎵 **{result['Song']}** by {result['Artist']}"
+        logger.info(f"Recognition failed: {result['error']}")
         return f"Recognition failed: {result['error']}"
     except Exception as e:
         logger.error(f"Error in process_audio: {str(e)}")
@@ -107,4 +112,4 @@ with gr.Blocks() as demo:
         outputs=output
     )
 
-demo.launch(show_error=True, debug=True, server_name="0.0.0.0")
+demo.launch(server_name="0.0.0.0", debug=True, show_error=True)
