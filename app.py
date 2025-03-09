@@ -38,6 +38,7 @@ def recognize_song(audio_path: str) -> dict:
         sample_bytes = str(os.path.getsize(audio_path))
 
         string_to_sign = f"{method}\n/v1/identify\n{ACR_ACCESS_KEY}\n{signature_version}\n{timestamp}"
+        logger.info(f"String to sign: {repr(string_to_sign)}")  # Mostrar exactamente qué se firma
         sign = hmac.new(
             ACR_SECRET_KEY.encode('utf-8'),
             string_to_sign.encode('utf-8'),
@@ -53,7 +54,7 @@ def recognize_song(audio_path: str) -> dict:
             "signature": signature,
             "timestamp": timestamp,
             "data_type": "audio",
-            "sample_bytes": sample_bytes  # Añadido
+            "sample_bytes": sample_bytes
         }
         logger.info(f"Request data: {data}")
 
