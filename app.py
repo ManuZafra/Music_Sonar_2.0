@@ -21,13 +21,8 @@ def recognize_song(audio_path: str) -> dict:
     logger.info(f"Starting recognition for: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
-<<<<<<< HEAD
-    logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY}")
-    logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY}")  # Mostrar completo
-=======
     logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY[:4]}...{ACR_ACCESS_KEY[-4:]}")
     logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY[:4]}...{ACR_SECRET_KEY[-4:]}")
->>>>>>> a0d9e08426e246b7cfebb3d165d25b58bc637b06
     if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
         logger.error("ACRCloud credentials missing")
         return {"error": "ACRCloud credentials not set"}
