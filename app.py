@@ -10,7 +10,6 @@ import hashlib
 import time
 import base64
 
-# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -18,11 +17,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("music_recognition_app")
 
-# ACRCloud con firma
 def recognize_song(audio_path: str) -> dict:
     logger.info(f"Starting recognition for: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
+    logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY}")
+    logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY}")  # Mostrar completo
     if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
         logger.error("ACRCloud credentials missing")
         return {"error": "ACRCloud credentials not set"}
@@ -38,7 +38,7 @@ def recognize_song(audio_path: str) -> dict:
         sample_bytes = str(os.path.getsize(audio_path))
 
         string_to_sign = f"{method}\n/v1/identify\n{ACR_ACCESS_KEY}\n{signature_version}\n{timestamp}"
-        logger.info(f"String to sign: {repr(string_to_sign)}")  # Mostrar exactamente qué se firma
+        logger.info(f"String to sign: {repr(string_to_sign)}")
         sign = hmac.new(
             ACR_SECRET_KEY.encode('utf-8'),
             string_to_sign.encode('utf-8'),
@@ -101,7 +101,6 @@ def process_audio(audio):
         logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
 
-# Interfaz
 with gr.Blocks() as demo:
     gr.Markdown("# Music Recognition")
     audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Record and Recognize'")
