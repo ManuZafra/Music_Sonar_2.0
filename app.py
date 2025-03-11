@@ -21,8 +21,13 @@ def recognize_song(audio_path: str) -> dict:
     logger.info(f"Starting recognition for: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
+<<<<<<< HEAD
     logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY}")
     logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY}")  # Mostrar completo
+=======
+    logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY[:4]}...{ACR_ACCESS_KEY[-4:]}")
+    logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY[:4]}...{ACR_SECRET_KEY[-4:]}")
+>>>>>>> a0d9e08426e246b7cfebb3d165d25b58bc637b06
     if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
         logger.error("ACRCloud credentials missing")
         return {"error": "ACRCloud credentials not set"}
@@ -101,17 +106,12 @@ def process_audio(audio):
         logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
 
-with gr.Blocks() as demo:
-    gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Record and Recognize'")
-    audio_input = gr.Audio(label="Record Audio", type="numpy", interactive=True)
-    record_btn = gr.Button("Record and Recognize", variant="primary")
-    output = gr.Markdown("Recognition result will appear here")
-
-    record_btn.click(
-        fn=process_audio,
-        inputs=audio_input,
-        outputs=output
-    )
-
+# Interfaz simplificada para pruebas
+demo = gr.Interface(
+    fn=process_audio,
+    inputs=gr.Audio(label="Record Audio", type="numpy"),
+    outputs="text",
+    title="Music Recognition",
+    description="Record 5-10 seconds of a song and click Submit to recognize it."
+)
 demo.launch(server_name="0.0.0.0", debug=True, show_error=True)
