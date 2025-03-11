@@ -10,7 +10,6 @@ import hashlib
 import time
 import base64
 
-# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -102,17 +101,12 @@ def process_audio(audio):
         logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
 
-with gr.Blocks() as demo:
-    gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Record and Recognize'")
-    audio_input = gr.Audio(label="Record Audio", type="numpy", interactive=True)
-    record_btn = gr.Button("Record and Recognize", variant="primary")
-    output = gr.Markdown("Recognition result will appear here")
-
-    record_btn.click(
-        fn=process_audio,
-        inputs=audio_input,
-        outputs=output
-    )
-
+# Interfaz simplificada para pruebas
+demo = gr.Interface(
+    fn=process_audio,
+    inputs=gr.Audio(label="Record Audio", type="numpy"),
+    outputs="text",
+    title="Music Recognition",
+    description="Record 5-10 seconds of a song and click Submit to recognize it."
+)
 demo.launch(server_name="0.0.0.0", debug=True, show_error=True)
