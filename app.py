@@ -1,4 +1,4 @@
-from smolagents import CodeAgent, HfApiModel, tool
+from smolagents import tool
 import gradio as gr
 import logging
 import tempfile
@@ -14,10 +14,6 @@ import time
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("music_recognition_app")
-
-# Verificar versión de smolagents
-import smolagents
-logger.info(f"smolagents version: {smolagents.__version__}")
 
 @tool
 def recognize_song(audio_path: str) -> dict:
@@ -76,14 +72,8 @@ def recognize_song(audio_path: str) -> dict:
         logger.error(f"Error in recognize_song: {str(e)}")
         return {"error": f"Error: {str(e)}"}
 
-# Configurar el agente
-agent = CodeAgent(
-    tools=[recognize_song],
-    model=HfApiModel("Qwen/Qwen2.5-72B-Instruct")  # Ajusta según tus credenciales del curso
-)
-
 def process_audio(audio):
-    """Procesa el audio grabado y lo envía al agente."""
+    """Procesa el audio grabado y lo envía a la herramienta de reconocimiento."""
     if audio is None:
         logger.info("No audio received")
         return "Please record some audio first"
@@ -93,13 +83,13 @@ def process_audio(audio):
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
             sf.write(tmp_file.name, audio_data, sample_rate, format="mp3")
             logger.info(f"Audio file written: {tmp_file.name}, size={os.path.getsize(tmp_file.name)} bytes")
-            result = agent.run(f"Identify the song in this audio file: {tmp_file.name}")
+            result = recognize_song(audio_path=tmp_file.name)  # Llamada directa a la herramienta
         os.unlink(tmp_file.name)
-        if isinstance(result, dict) and "error" not in result:
+        if "error" not in result:
             logger.info(f"Recognition successful: {result}")
             return f"🎵 **{result['Song']}** by {result['Artist']}"
-        logger.info(f"Recognition failed: {result.get('error', result)}")
-        return f"Recognition failed: {result.get('error', result)}"
+        logger.info(f"Recognition failed: {result['error']}")
+        return f"Recognition failed: {result['error']}"
     except Exception as e:
         logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
