@@ -31,7 +31,7 @@ def recognize_song(audio_path: str) -> dict:
         return {"error": "Audio file does not exist"}
 
     try:
-        url = "http://identify-eu-west-1.acrcloud.com/v1/identify"
+        url = "http://identify-us-west-2.acrcloud.com/v1/identify"
         timestamp = str(int(time.time()))
         signature_version = "1"
         method = "POST"
