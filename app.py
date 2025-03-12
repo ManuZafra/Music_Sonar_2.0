@@ -23,6 +23,10 @@ logger.info(f"smolagents version: {smolagents.__version__}")
 def recognize_song(audio_path: str) -> dict:
     """
     Recognize a song from an audio file using the ACRCloud API.
+    Args:
+        audio_path (str): Path to the audio file to be recognized.
+    Returns:
+        dict: Dictionary containing song title and artist if successful, or an error message if failed.
     """
     logger.info(f"Recognizing song from: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
@@ -37,7 +41,7 @@ def recognize_song(audio_path: str) -> dict:
     try:
         url = "http://identify-eu-west-1.acrcloud.com/v1/identify"
         timestamp = str(int(time.time()))
-        string_to_sign = f"POST\n/v1/identify\n{ACR_ACCESS_KEY}\naudio\n1\n{timestamp}"  # Incluye "audio"
+        string_to_sign = f"POST\n/v1/identify\n{ACR_ACCESS_KEY}\naudio\n1\n{timestamp}"
         sign = hmac.new(ACR_SECRET_KEY.encode(), string_to_sign.encode(), hashlib.sha1).digest()
         signature = base64.b64encode(sign).decode()
 
@@ -61,15 +65,13 @@ def recognize_song(audio_path: str) -> dict:
         if response.status_code != 200:
             return {"error": f"API Error: {response.status_code}"}
         result = response.json()
-        if result.get("status", {}).get("code", -1) != 0:
-            return {"error": result["status"]["msg"]}
-        if "metadata" not in result or "music" not in result["metadata"]:
-            return {"error": "Could not recognize the song"}
-        song_info = result["metadata"]["music"][0]
-        return {
-            "Song": song_info.get("title", "Unknown"),
-            "Artist": song_info.get("artists", [{}])[0].get("name", "Unknown")
-        }
+        if result.get("status", {}).get("code", -1) == 0:
+            song_info = result["metadata"]["music"][0]
+            return {
+                "Song": song_info.get("title", "Unknown"),
+                "Artist": song_info.get("artists", [{}])[0].get("name", "Unknown")
+            }
+        return {"error": result["status"]["msg"]}
     except Exception as e:
         logger.error(f"Error in recognize_song: {str(e)}")
         return {"error": f"Error: {str(e)}"}
@@ -91,7 +93,7 @@ def process_audio(audio):
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
             sf.write(tmp_file.name, audio_data, sample_rate, format="mp3")
             logger.info(f"Audio file written: {tmp_file.name}, size={os.path.getsize(tmp_file.name)} bytes")
-            result = agent.run(f"Identify the song in this audio file: {tmp鼓励_file.name}")
+            result = agent.run(f"Identify the song in this audio file: {tmp_file.name}")
         os.unlink(tmp_file.name)
         if isinstance(result, dict) and "error" not in result:
             logger.info(f"Recognition successful: {result}")
