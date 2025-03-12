@@ -1,28 +1,32 @@
-import os
-import requests
+from smolagents import CodeAgent, HfApiModel, tool
 import gradio as gr
 import logging
 import tempfile
 import soundfile as sf
 import numpy as np
+import os
+import requests
 import hmac
 import hashlib
-import time
 import base64
+import time
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]
-)
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("music_recognition_app")
 
+# Verificar versión de smolagents
+import smolagents
+logger.info(f"smolagents version: {smolagents.__version__}")
+
+@tool
 def recognize_song(audio_path: str) -> dict:
-    logger.info(f"Starting recognition for: {audio_path}")
+    """
+    Recognize a song from an audio file using the ACRCloud API.
+    """
+    logger.info(f"Recognizing song from: {audio_path}")
     ACR_ACCESS_KEY = os.getenv("ACR_ACCESS_KEY")
     ACR_SECRET_KEY = os.getenv("ACR_SECRET_KEY")
-    logger.info(f"Using ACR_ACCESS_KEY: {ACR_ACCESS_KEY}")
-    logger.info(f"Using ACR_SECRET_KEY: {ACR_SECRET_KEY}")  # Mostrar completo
     if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
         logger.error("ACRCloud credentials missing")
         return {"error": "ACRCloud credentials not set"}
@@ -31,38 +35,29 @@ def recognize_song(audio_path: str) -> dict:
         return {"error": "Audio file does not exist"}
 
     try:
-        url = "http://identify-us-west-1.acrcloud.com/v1/identify"
+        url = "http://identify-eu-west-1.acrcloud.com/v1/identify"
         timestamp = str(int(time.time()))
-        signature_version = "1"
-        method = "POST"
-        sample_bytes = str(os.path.getsize(audio_path))
-
-        string_to_sign = f"{method}\n/v1/identify\n{ACR_ACCESS_KEY}\n{signature_version}\n{timestamp}"
-        logger.info(f"String to sign: {repr(string_to_sign)}")
-        sign = hmac.new(
-            ACR_SECRET_KEY.encode('utf-8'),
-            string_to_sign.encode('utf-8'),
-            hashlib.sha1
-        ).digest()
-        signature = base64.b64encode(sign).decode('utf-8')
+        string_to_sign = f"POST\n/v1/identify\n{ACR_ACCESS_KEY}\naudio\n1\n{timestamp}"  # Incluye "audio"
+        sign = hmac.new(ACR_SECRET_KEY.encode(), string_to_sign.encode(), hashlib.sha1).digest()
+        signature = base64.b64encode(sign).decode()
 
         data = {
             "access_key": ACR_ACCESS_KEY,
             "sample_rate": "44100",
             "audio_format": "mp3",
-            "signature_version": signature_version,
+            "signature_version": "1",
             "signature": signature,
             "timestamp": timestamp,
             "data_type": "audio",
-            "sample_bytes": sample_bytes
+            "sample_bytes": str(os.path.getsize(audio_path))
         }
+        logger.info(f"String to sign: {string_to_sign}")
         logger.info(f"Request data: {data}")
 
         with open(audio_path, "rb") as file:
-            files = {"sample": (os.path.basename(audio_path), file, "audio/mpeg")}
-            response = requests.post(url, data=data, files=files)
-
+            response = requests.post(url, data=data, files={"sample": file})
         logger.info(f"ACRCloud response: status={response.status_code}, content={response.text}")
+
         if response.status_code != 200:
             return {"error": f"API Error: {response.status_code}"}
         result = response.json()
@@ -73,14 +68,20 @@ def recognize_song(audio_path: str) -> dict:
         song_info = result["metadata"]["music"][0]
         return {
             "Song": song_info.get("title", "Unknown"),
-            "Artist": song_info.get("artists", [{}])[0].get("name", "Unknown"),
+            "Artist": song_info.get("artists", [{}])[0].get("name", "Unknown")
         }
     except Exception as e:
         logger.error(f"Error in recognize_song: {str(e)}")
         return {"error": f"Error: {str(e)}"}
 
+# Configurar el agente
+agent = CodeAgent(
+    tools=[recognize_song],
+    model=HfApiModel("Qwen/Qwen2.5-72B-Instruct")  # Ajusta según tus credenciales del curso
+)
+
 def process_audio(audio):
-    logger.info(f"Processing audio: {audio}")
+    """Procesa el audio grabado y lo envía al agente."""
     if audio is None:
         logger.info("No audio received")
         return "Please record some audio first"
@@ -90,22 +91,23 @@ def process_audio(audio):
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
             sf.write(tmp_file.name, audio_data, sample_rate, format="mp3")
             logger.info(f"Audio file written: {tmp_file.name}, size={os.path.getsize(tmp_file.name)} bytes")
-            result = recognize_song(tmp_file.name)
+            result = agent.run(f"Identify the song in this audio file: {tmp鼓励_file.name}")
         os.unlink(tmp_file.name)
-        if "error" not in result:
+        if isinstance(result, dict) and "error" not in result:
             logger.info(f"Recognition successful: {result}")
             return f"🎵 **{result['Song']}** by {result['Artist']}"
-        logger.info(f"Recognition failed: {result['error']}")
-        return f"Recognition failed: {result['error']}"
+        logger.info(f"Recognition failed: {result.get('error', result)}")
+        return f"Recognition failed: {result.get('error', result)}"
     except Exception as e:
         logger.error(f"Error in process_audio: {str(e)}")
         return f"Error: {str(e)}"
 
+# Interfaz Gradio
 with gr.Blocks() as demo:
-    gr.Markdown("# Music Recognition")
-    audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Record and Recognize'")
+    gr.Markdown("# Music Recognition with smolagents")
+    audio_status = gr.Markdown("1. Record audio using the mic below\n2. Click 'Recognize Song'")
     audio_input = gr.Audio(label="Record Audio", type="numpy", interactive=True)
-    record_btn = gr.Button("Record and Recognize", variant="primary")
+    record_btn = gr.Button("Recognize Song", variant="primary")
     output = gr.Markdown("Recognition result will appear here")
 
     record_btn.click(

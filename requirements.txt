@@ -3,3 +3,5 @@ requests
 soundfile
 numpy>=1.16.6,<2.0
 pydub
+requests
+smolagents
