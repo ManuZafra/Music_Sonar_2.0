@@ -1,7 +1,7 @@
-gradio>=5.0.0
-requests
-soundfile
-numpy>=1.16.6,<2.0
-pydub
-requests
-smolagents
+gradio==5.20.1
+soundfile==0.13.1
+numpy==2.2.3
+requests==2.32.3
+smolagents==1.10.0
+huggingface-hub==0.29.3
+tokenizers==0.21.1
