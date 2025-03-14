@@ -1,0 +1,10 @@
+.env
+.gradio/
+smol_env/
+temp_audio.wav
+test_audio.mp3
+test_audio_mp3.py
+test_signature.py
+testaudio.py
+*.wav
+*.mp3
