@@ -29,23 +29,17 @@ class LLMWrapper:
         self.client = client
 
     def __call__(self, prompt, **kwargs):
-        # Depuración: mostrar el prompt recibido
-        print(f"Received prompt: {prompt}")
-        # Manejar diferentes formatos de prompt
+        # Si es una lista, extrae el texto relevante
         if isinstance(prompt, list):
-            # Buscar texto en la lista
             for msg in prompt:
                 if isinstance(msg, dict):
+                    # Busca 'text' o 'content' como claves posibles
                     text = msg.get("text") or msg.get("content")
                     if text:
-                        print(f"Extracted text: {text}")
                         return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
-            # Fallback: convertir lista a string
-            text = str(prompt)
-            print(f"Fallback text from list: {text}")
-            return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
-        # Si es string, usarlo directamente
-        print(f"Using string directly: {prompt}")
+            # Si no hay texto claro, convierte la lista a string como fallback
+            return self.client.text_generation(str(prompt), max_new_tokens=500, temperature=0.7)
+        # Si es un string directo, úsalo tal cual
         return self.client.text_generation(str(prompt), max_new_tokens=500, temperature=0.7)
 
 # Herramienta de reconocimiento
@@ -109,7 +103,7 @@ agent = CodeAgent(tools=[recognize_song], model=LLMWrapper(llm), additional_auth
 
 # Información dinámica del artista con LLM
 def get_artist_info(artist_name: str) -> str:
-    prompt = f"Dame una breve biografía de {artist_name}, destacando su carrera y estilo musical, en español."
+    prompt = f"Dame una breve biografía de {artist_name}, destacando su carrera y estilo musical."
     try:
         return llm.text_generation(prompt, max_new_tokens=200, temperature=0.7)
     except Exception as e:
@@ -117,7 +111,7 @@ def get_artist_info(artist_name: str) -> str:
 
 # Curiosidades dinámicas con LLM
 def get_curiosities(artist_name: str) -> str:
-    prompt = f"Lista 2-3 datos interesantes sobre {artist_name} relacionados con su música o carrera, en español."
+    prompt = f"Proporciona 2-3 curiosidades interesantes sobre {artist_name} relacionadas con su música o carrera."
     try:
         return llm.text_generation(prompt, max_new_tokens=200, temperature=0.7)
     except Exception as e:
