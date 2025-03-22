@@ -29,7 +29,9 @@ class LLMWrapper:
         self.client = client
 
     def __call__(self, prompt, **kwargs):
+        # Depuración
         print(f"Received prompt: {prompt}")
+        # Extraer texto del prompt
         if isinstance(prompt, list):
             for msg in prompt:
                 if isinstance(msg, dict):
@@ -47,17 +49,6 @@ class LLMWrapper:
 # Herramienta de reconocimiento
 @tool
 def recognize_song(audio_path: str) -> dict:
-    """
-    Recognize a song from an audio file using the ACRCloud API.
-
-    Args:
-        audio_path (str): Path to the audio file to be recognized (e.g., 'temp_audio.wav').
-
-    Returns:
-        dict: Dictionary containing song details if successful, or an error message if failed.
-              Possible keys on success: 'title', 'artist', 'album', 'release_date'.
-              On failure: {'error': str}.
-    """
     try:
         audio_data, sample_rate = sf.read(audio_path)
         if sample_rate != 8000:
