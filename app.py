@@ -29,26 +29,39 @@ class LLMWrapper:
         self.client = client
 
     def __call__(self, prompt, **kwargs):
-        # Depuración
+        # Depuración: mostrar el prompt recibido
         print(f"Received prompt: {prompt}")
-        # Extraer texto del prompt
+        # Manejar diferentes formatos de prompt
         if isinstance(prompt, list):
+            # Buscar texto en la lista
             for msg in prompt:
                 if isinstance(msg, dict):
                     text = msg.get("text") or msg.get("content")
                     if text:
                         print(f"Extracted text: {text}")
                         return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
-            text = str(prompt[0]) if prompt else str(prompt)
+            # Fallback: convertir lista a string
+            text = str(prompt)
             print(f"Fallback text from list: {text}")
             return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
-        text = str(prompt)
-        print(f"Using string directly: {text}")
-        return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
+        # Si es string, usarlo directamente
+        print(f"Using string directly: {prompt}")
+        return self.client.text_generation(str(prompt), max_new_tokens=500, temperature=0.7)
 
 # Herramienta de reconocimiento
 @tool
 def recognize_song(audio_path: str) -> dict:
+    """
+    Recognize a song from an audio file using the ACRCloud API.
+
+    Args:
+        audio_path (str): Path to the audio file to be recognized (e.g., 'temp_audio.wav').
+
+    Returns:
+        dict: Dictionary containing song details if successful, or an error message if failed.
+              - On success: {'title': str, 'artist': str, 'album': str, 'release_date': str}
+              - On failure: {'error': str}
+    """
     try:
         audio_data, sample_rate = sf.read(audio_path)
         if sample_rate != 8000:
@@ -104,7 +117,7 @@ def get_artist_info(artist_name: str) -> str:
 
 # Curiosidades dinámicas con LLM
 def get_curiosities(artist_name: str) -> str:
-    prompt = f"En español, lista 2-3 datos interesantes sobre {artist_name} relacionados con su música o carrera en formato:\n1. [Dato 1]\n2. [Dato 2]\n3. [Dato 3]"
+    prompt = f"Lista 2-3 datos interesantes sobre {artist_name} relacionados con su música o carrera, en español."
     try:
         return llm.text_generation(prompt, max_new_tokens=200, temperature=0.7)
     except Exception as e:
@@ -140,6 +153,7 @@ def process_audio(audio):
     artist_info = get_artist_info(artist_name)
     curiosities = get_curiosities(artist_name)
 
+    # Formato con datos estrictos de ACRCloud y texto grande
     output = (
         "<style>.large-text { font-size: 24px; line-height: 1.5; }</style>\n"
         "<h2>🎵 Detalles de la Canción 🎵</h2>\n"
