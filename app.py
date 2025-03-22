@@ -10,94 +10,56 @@ import librosa
 import numpy as np
 from smolagents import tool, CodeAgent
 from huggingface_hub import InferenceClient
-
-# Clase auxiliar para simular un objeto con .content
-class SimpleResponse:
-    def __init__(self, content):
-        self.content = content
+import tempfile
 
 # Cargar claves de entorno
 ACR_ACCESS_KEY = os.environ.get("ACR_ACCESS_KEY")
 ACR_SECRET_KEY = os.environ.get("ACR_SECRET_KEY")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-# Verificar claves
-if not ACR_ACCESS_KEY or not ACR_SECRET_KEY:
-    raise ValueError("Faltan ACR_ACCESS_KEY o ACR_SECRET_KEY en las variables de entorno")
-if not HF_TOKEN:
-    raise ValueError("Falta HF_TOKEN en las variables de entorno")
+if not all([ACR_ACCESS_KEY, ACR_SECRET_KEY, HF_TOKEN]):
+    raise ValueError("Faltan variables de entorno necesarias")
 
-# Configuración del modelo LLM usando Hugging Face Inference API
-llm = InferenceClient(
-    model="mistralai/Mixtral-8x7B-Instruct-v0.1",
-    token=HF_TOKEN
-)
+# Configuración del modelo LLM
+llm = InferenceClient(model="mistralai/Mixtral-8x7B-Instruct-v0.1", token=HF_TOKEN)
 
-# Wrapper para adaptar InferenceClient a smolagents
+# Wrapper para LLM
 class LLMWrapper:
     def __init__(self, client):
         self.client = client
 
     def __call__(self, prompt, **kwargs):
+        print(f"Received prompt: {prompt}")
         if isinstance(prompt, list):
-            for message in prompt:
-                if message.get("role") == "user":
-                    user_content = message.get("content")
-                    if isinstance(user_content, list):
-                        for item in user_content:
-                            if item.get("type") == "text":
-                                prompt = item.get("text")
-                                break
-                    else:
-                        prompt = user_content
-                    break
-            else:
-                prompt = str(prompt)
-        elif not isinstance(prompt, str):
-            prompt = str(prompt)
+            for msg in prompt:
+                if isinstance(msg, dict):
+                    text = msg.get("text") or msg.get("content")
+                    if text:
+                        print(f"Extracted text: {text}")
+                        return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
+            text = str(prompt[0]) if prompt else str(prompt)
+            print(f"Fallback text from list: {text}")
+            return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
+        text = str(prompt)
+        print(f"Using string directly: {text}")
+        return self.client.text_generation(text, max_new_tokens=500, temperature=0.7)
 
-        print(f"Prompt enviado a text_generation: {prompt}")
-        response = self.client.text_generation(
-            prompt=prompt,
-            max_new_tokens=500,
-            temperature=0.7
-        )
-        print(f"Raw response from text_generation: {response}")
-
-        # Si la respuesta no incluye un bloque de código con final_answer, lo añadimos
-        if "```py" not in response and "final_answer" not in response:
-            formatted_response = (
-                "Thought: La tarea es proporcionar sugerencias sobre qué hacer con la información de la canción identificada. No se requiere ejecución de código adicional, solo devolver la respuesta.\n"
-                "Code:\n"
-                "```py\n"
-                f"final_answer({repr(response)})\n"
-                "```<end_code>"
-            )
-            return SimpleResponse(formatted_response)
-        return SimpleResponse(response)
-
-# Definir la herramienta antes del agente
+# Herramienta de reconocimiento
 @tool
 def recognize_song(audio_path: str) -> dict:
     """
     Recognize a song from an audio file using the ACRCloud API.
 
     Args:
-        audio_path (str): Path to the audio file to be recognized.
+        audio_path (str): Path to the audio file to be recognized (e.g., 'temp_audio.wav').
 
     Returns:
-        dict: Dictionary containing song title and artist if successful, or an error message if failed.
-              - On success: {'title': str, 'artist': str}
-              - On failure: {'error': str}
-
-    Example:
-        >>> recognize_song("temp_audio.wav")
-        {'title': 'No Revolution (Original Mix)', 'artist': 'Joris Voorn'}
+        dict: Dictionary containing song details if successful, or an error message if failed.
+              Possible keys on success: 'title', 'artist', 'album', 'release_date'.
+              On failure: {'error': str}.
     """
-    print(f"Recognizing song from: {audio_path}")
     try:
         audio_data, sample_rate = sf.read(audio_path)
-        print(f"Sample rate: {sample_rate}, Audio data shape: {audio_data.shape}")
         if sample_rate != 8000:
             print(f"Warning: Sample rate is {sample_rate}, expected 8000 Hz.")
 
@@ -106,13 +68,7 @@ def recognize_song(audio_path: str) -> dict:
         data_type = "audio"
         signature_version = "1"
         string_to_sign = f"POST\n/v1/identify\n{ACR_ACCESS_KEY}\n{data_type}\n{signature_version}\n{timestamp}"
-        sign = base64.b64encode(
-            hmac.new(
-                ACR_SECRET_KEY.encode("ascii"),
-                string_to_sign.encode("ascii"),
-                digestmod=hashlib.sha1
-            ).digest()
-        ).decode("ascii")
+        sign = base64.b64encode(hmac.new(ACR_SECRET_KEY.encode("ascii"), string_to_sign.encode("ascii"), digestmod=hashlib.sha1).digest()).decode("ascii")
 
         files = {"sample": (audio_path, open(audio_path, "rb"), "audio/wav")}
         data = {
@@ -124,78 +80,127 @@ def recognize_song(audio_path: str) -> dict:
             "timestamp": timestamp
         }
 
-        print("Sending request to ACRCloud...")
         response = requests.post(url, files=files, data=data)
         response_data = response.json()
-        print(f"ACRCloud response: {response_data}")
 
         if response_data.get("status", {}).get("code") == 0:
             if "metadata" in response_data and "music" in response_data["metadata"] and response_data["metadata"]["music"]:
                 metadata = response_data["metadata"]["music"][0]
                 return {
-                    "title": metadata["title"],
-                    "artist": metadata["artists"][0]["name"]
+                    "title": metadata.get("title", "Unknown"),
+                    "artist": metadata["artists"][0]["name"] if metadata.get("artists") else "Unknown",
+                    "album": metadata.get("album", {}).get("name", "Unknown"),
+                    "release_date": metadata.get("release_date", "Unknown")
                 }
             else:
-                return {"error": "No se encontraron coincidencias para la canción"}
+                return {"error": "No se encontraron coincidencias para el audio proporcionado"}
         else:
-            return {"error": response_data.get("status", {}).get("msg", "Unknown error")}
+            return {"error": response_data.get("status", {}).get("msg", "Error desconocido en ACRCloud")}
     except Exception as e:
         print(f"Error in recognize_song: {str(e)}")
         return {"error": str(e)}
 
-# Configuración del agente con imports autorizados
-agent = CodeAgent(
-    tools=[recognize_song],
-    model=LLMWrapper(llm),
-    additional_authorized_imports=["boto3"]
-)
+# Configuración del agente
+agent = CodeAgent(tools=[recognize_song], model=LLMWrapper(llm), additional_authorized_imports=["boto3"])
 
+# Información dinámica del artista con LLM
+def get_artist_info(artist_name: str) -> str:
+    prompt = f"Dame una breve biografía de {artist_name}, destacando su carrera y estilo musical, en español."
+    try:
+        return llm.text_generation(prompt, max_new_tokens=200, temperature=0.7)
+    except Exception as e:
+        return f"No se pudo obtener info de {artist_name}: {str(e)}"
+
+# Curiosidades dinámicas con LLM
+def get_curiosities(artist_name: str) -> str:
+    prompt = f"En español, lista 2-3 datos interesantes sobre {artist_name} relacionados con su música o carrera en formato:\n1. [Dato 1]\n2. [Dato 2]\n3. [Dato 3]"
+    try:
+        return llm.text_generation(prompt, max_new_tokens=200, temperature=0.7)
+    except Exception as e:
+        return f"No hay curiosidades disponibles para {artist_name}: {str(e)}"
+
+# Procesar audio
 def process_audio(audio):
-    print("Processing audio...")
     if audio is None:
-        print("No audio received")
-        return "No se recibió audio."
+        return "No se recibió audio.", None
 
     target_sr = 8000
     audio_data = audio[1].astype(np.float32) / 32768.0
     audio_data = librosa.resample(audio_data, orig_sr=audio[0], target_sr=target_sr)
-    temp_path = "temp_audio.wav"
-    print(f"Saving audio to {temp_path}, sample rate: {target_sr}, data shape: {audio_data.shape}")
-    sf.write(temp_path, audio_data, target_sr)
 
-    result = recognize_song(temp_path)
-    print(f"Recognition result: {result}")
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+        temp_path = temp_file.name
+        sf.write(temp_path, audio_data, target_sr)
+        result = recognize_song(temp_path)
+    os.remove(temp_path)
 
     if "error" in result:
         query = f"No se pudo identificar la canción: {result['error']}. ¿Qué puedo hacer?"
-    else:
-        query = (
-            f"Acabo de identificar la canción '{result['title']}' de {result['artist']} usando ACRCloud. "
-            "Dame 5 sugerencias específicas sobre qué puedo hacer con esta información, "
-            "como escuchar más música similar, buscar datos del artista, o usarla creativamente."
-        )
+        try:
+            agent_response = agent.run(query)
+            return agent_response, None
+        except Exception as e:
+            return f"Error al consultar al agente: {str(e)}", None
 
-    print(f"Querying agent with: {query}")
+    song_title = result["title"]
+    artist_name = result["artist"]
+    album = result["album"]
+    release_date = result["release_date"]
+    artist_info = get_artist_info(artist_name)
+    curiosities = get_curiosities(artist_name)
+
+    output = (
+        "<style>.large-text { font-size: 24px; line-height: 1.5; }</style>\n"
+        "<h2>🎵 Detalles de la Canción 🎵</h2>\n"
+        "<div class='large-text'>\n"
+        "──────────────────────\n"
+        f"🎵 Título: {song_title}\n\n"
+        f"🎤 Artista: {artist_name}\n\n"
+        f"📅 Lanzamiento: {release_date}\n\n"
+        f"📀 Álbum: {album}\n\n"
+        f"🏷️ Sello: No disponible en ACRCloud\n\n"
+        f"🎧 Género: No disponible en ACRCloud\n"
+        "──────────────────────\n\n"
+        f"👤 **Sobre {artist_name}** 👤\n"
+        "──────────────────────\n"
+        f"{artist_info}\n\n"
+        "──────────────────────\n"
+        "✨ **Curiosidades y Anécdotas** ✨\n"
+        "──────────────────────\n"
+        f"{curiosities}\n"
+        "</div>"
+    )
+    return output, artist_name
+
+# Chat con el agente
+def chat_with_llm(message, history, artist_name):
+    if not artist_name:
+        return "Primero identifica una canción para chatear sobre el artista."
+    query = f"Pregunta sobre {artist_name}: {message}"
     try:
-        agent_response = agent.run(query)
-        # Verifica si agent_response tiene .content, si no, usa el texto crudo
-        response_text = getattr(agent_response, "content", str(agent_response))
-        print(f"Agent response: {response_text}")
-        return response_text
+        response = agent.run(query)
+        return f"**Tú**: {message}\n**Respuesta**: {response}"
     except Exception as e:
-        print(f"Error in agent.run: {str(e)}")
-        return f"Error al consultar al agente: {str(e)}"
+        return f"**Tú**: {message}\n**Error**: {str(e)}"
 
 # Interfaz de Gradio
-interface = gr.Interface(
-    fn=process_audio,
-    inputs=gr.Audio(type="numpy", recording=True),
-    outputs="text",
-    title="Music Sonar 2.0",
-    description="Graba audio y descubre qué canción es con ACRCloud y asistencia de IA."
-)
+with gr.Blocks(title="Music Sonar 2.0") as interface:
+    gr.Markdown("# 🎧 Music Sonar 2.0")
+    gr.Markdown("Sube o graba un audio para descubrir la canción y más sobre el artista.")
+
+    audio_input = gr.Audio(type="numpy", label="Graba o sube un audio", recording=True)
+    submit_btn = gr.Button("Identificar")
+    output_text = gr.Markdown(label="Resultados")
+    artist_state = gr.State()
+
+    with gr.Column():
+        gr.Markdown("### 💬 Chatea sobre el artista")
+        chat_output = gr.Textbox(label="Conversación", lines=10, interactive=False)
+        chat_input = gr.Textbox(label="Pregunta algo", placeholder="E.g., ¿Qué inspira a este artista?")
+        chat_submit = gr.Button("Enviar")
+
+    submit_btn.click(fn=process_audio, inputs=audio_input, outputs=[output_text, artist_state])
+    chat_submit.click(fn=chat_with_llm, inputs=[chat_input, chat_output, artist_state], outputs=chat_output)
 
 if __name__ == "__main__":
     interface.launch(share=True)
-#hello

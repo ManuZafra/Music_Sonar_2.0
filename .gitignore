@@ -6,5 +6,6 @@ test_audio.mp3
 test_audio_mp3.py
 test_signature.py
 testaudio.py
+Ignore
 *.wav
 *.mp3
